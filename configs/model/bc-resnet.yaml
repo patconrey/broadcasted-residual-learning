@@ -1,0 +1,36 @@
+_target_: src.models.components.broadcasted_res_net.BroadcastedResNet
+
+stage_configurations: [
+    {
+      'input_channels': 16,
+      'output_channels': 8,
+      'stride': 1,
+      'dilation': 1,
+      'number_of_normal_blocks': 2,
+      'temporal_padding': (0, 1),
+    },
+    {
+      'input_channels': 8,
+      'output_channels': 12,
+      'stride': (2, 1),
+      'dilation': (1, 2),
+      'number_of_normal_blocks': 2,
+      'temporal_padding': (0, 2)
+    },
+    {
+      'input_channels': 12,
+      'output_channels': 16,
+      'stride': (2, 1),
+      'dilation': (1, 4),
+      'number_of_normal_blocks': 4,
+      'temporal_padding': (0, 4)
+    },
+    {
+      'input_channels': 16,
+      'output_channels': 20,
+      'stride': 1,
+      'dilation': (1, 8),
+      'number_of_normal_blocks': 4,
+      'temporal_padding': (0, 8)
+    }
+  ]

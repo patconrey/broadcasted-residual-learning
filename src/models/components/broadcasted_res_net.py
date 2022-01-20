@@ -8,53 +8,62 @@ class BroadcastedResNet(nn.Module):
 	Byeonggeun Kim, Simyung Chang, Jinkyu Lee, Dooyong Sun
 	https://www.isca-speech.org/archive/pdfs/interspeech_2021/kim21l_interspeech.pdf
 	"""
-	def __init__(self):
+	def __init__(
+		self,
+		stage_configurations = [
+			{
+				'input_channels': 16,
+				'output_channels': 8,
+				'stride': 1,
+				'dilation': 1,
+				'number_of_normal_blocks': 2,
+				'temporal_padding': (0, 1),
+			},
+			{
+				'input_channels': 8,
+				'output_channels': 12,
+				'stride': (2, 1),
+				'dilation': (1, 2),
+				'number_of_normal_blocks': 2,
+				'temporal_padding': (0, 2)
+			},
+			{
+				'input_channels': 12,
+				'output_channels': 16,
+				'stride': (2, 1),
+				'dilation': (1, 4),
+				'number_of_normal_blocks': 4,
+				'temporal_padding': (0, 4)
+			},
+			{
+				'input_channels': 16,
+				'output_channels': 20,
+				'stride': 1,
+				'dilation': (1, 8),
+				'number_of_normal_blocks': 4,
+				'temporal_padding': (0, 8)
+			}
+		]
+		):
 		super().__init__()
 
 		self.frontend_convolution = nn.Conv2d(
 			in_channels=1,
 			out_channels=16,
 			stride=(2, 1),
-			kernel_size=(5, 5)
+			kernel_size=(5, 5),
+			padding=(2, 2),
 		)
 
 		# NOTE: The changes in channel and stride belong to
 		# the transition block. The dilation is given to both
 		# the transition and normal blocks. Padding is calculated
 		# for the output shape to match the details in the table.
+		stages = []
+		for config in stage_configurations:
+			stages.append(build_stage(**config))
 
-		self.stage_1 = build_stage(
-			input_channels=16,
-			output_channels=8,
-			stride=1,
-			dilation=1,
-			number_of_normal_blocks=2,
-			temporal_padding=(0, 1)
-		)
-		self.stage_2 = build_stage(
-			input_channels=8,
-			output_channels=12,
-			stride=(2, 1),
-			dilation=(1, 2),
-			number_of_normal_blocks=2,
-			temporal_padding=(0, 2)
-		)
-		self.stage_3 = build_stage(
-			input_channels=12,
-			output_channels=16,
-			stride=(2, 1),
-			dilation=(1, 4),
-			number_of_normal_blocks=4,
-			temporal_padding=(0, 4)
-		)
-		self.stage_4 = build_stage(
-			input_channels=16,
-			output_channels=20,
-			stride=1,
-			dilation=(1, 8),
-			number_of_normal_blocks=4,
-			temporal_padding=(0, 8)
-		)
+		self.stages = nn.Sequential(*stages)
 
 		self.depthwise_convolution = nn.Conv2d(
 			in_channels=20,
@@ -88,10 +97,7 @@ class BroadcastedResNet(nn.Module):
 		"""
 		x = self.frontend_convolution(x)
 
-		x = self.stage_1(x)
-		x = self.stage_2(x)
-		x = self.stage_3(x)
-		x = self.stage_4(x)
+		x = self.stages(x)
 
 		x = self.depthwise_convolution(x)
 		x = self.pointwise_convolution_1(x)

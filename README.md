@@ -1,5 +1,25 @@
 <div align="center">
 
+# Coding Demo
+
+<div align="left">
+
+This repository contains an implementation of the architecture from 
+"Broadcasted Residual Learning for Efficient Keyword Spotting" by Byeonggeun Kim, Simyung Chang, Jinkyu Lee, Dooyong Sun. https://www.isca-speech.org/archive/pdfs/interspeech_2021/kim21l_interspeech.pdf.
+
+The model code is divided into three documents.
+1. The broadcasted residual building blocks can be found in `src/models/components/broadcasted_residual_blocks.py`. This document contains two classes: a normal broadcasted residual block and a transition broadcasted residual block. Additionally, it contains a function `build_stage` that returns a stage as defined in the paper cited above.
+2. The ResNet implementation, which uses the broadcasted residual blocks, can be found in `src/models/components/broadcasted_res_net.py`. 
+3. The subspectral normalization method used in the paper can be found in `src/utils/subspectral_normalization.py`.
+
+The project is structured this way in accordance with an incredibly useful PyTorch template, called Lightning-Hydra-Template. The README for this template can be found below.
+
+For the ease of review, I have placed all of the code in one central place as well, which can be found at `coding_demo.py` in the root directory of this repository.
+
+To run the demo, issue the command `python coding_demo.py`. Ensure that you have the latest version of PyTorch installed. 
+
+<div align="center">
+
 # Lightning-Hydra-Template
 
 <a href="https://www.python.org/"><img alt="Python" src="https://img.shields.io/badge/-Python 3.7+-blue?style=for-the-badge&logo=python&logoColor=white"></a>
