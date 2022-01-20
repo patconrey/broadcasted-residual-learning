@@ -9,19 +9,20 @@ class BCResNormalBlock(nn.Module):
 	f1 and f2 and the output of f1. It sums these two residuals with
 	an identity connection, forming the output of the block.
 	"""
-	def __init__(self, hparams: dict):
+	def __init__(
+		self,
+		input_channels = 8,
+		output_channels = 8,
+		stride = 1,
+		dilation = 1,
+		frequency_kernel_size = (3, 1),
+		frequency_padding = (1, 0),
+		temporal_kernel_size = (1, 3),
+		temporal_padding = (0, 1),
+	):
 		super().__init__()
 
-		input_channels = hparams['input_channels']
-		output_channels = hparams['output_channels']
 		assert input_channels == output_channels, 'For Normal Block, input channels must equal output channels. Otherwise, use a Transition Block.'
-		
-		stride = hparams['stride']
-		dilation = hparams['dilation']
-		frequency_kernel_size = hparams['frequency_kernel_size']
-		temporal_kernel_size = hparams['temporal_kernel_size']
-		frequency_padding = hparams['frequency_padding']
-		temporal_padding = hparams['temporal_padding']
 
 		#
 		# Component parts
@@ -102,19 +103,20 @@ class BCResTransitionBlock(nn.Module):
 	has two parameterized functions, f1 and f2. It sums the output of f1 with the
 	output of f2, forming the output of the block. 
 	"""
-	def __init__(self, hparams: dict):
+	def __init__(
+		self,
+		input_channels = 16,
+		output_channels = 8,
+		stride = 1,
+		dilation = 1,
+		frequency_kernel_size = (3, 1),
+		frequency_padding = (1, 0),
+		temporal_kernel_size = (1, 3),
+		temporal_padding = (0, 1),
+	):
 		super().__init__()
 
-		input_channels = hparams['input_channels']
-		output_channels = hparams['output_channels']
 		assert input_channels != output_channels, 'For Transition Block, input channels must not equal output channels. Otherwise, use a Normal Block.'
-		
-		stride = hparams['stride']
-		dilation = hparams['dilation']
-		frequency_kernel_size = hparams['frequency_kernel_size']
-		temporal_kernel_size = hparams['temporal_kernel_size']
-		frequency_padding = hparams['frequency_padding']
-		temporal_padding = hparams['temporal_padding']
 
 		#
 		# Component parts
@@ -197,7 +199,52 @@ class BCResTransitionBlock(nn.Module):
 
 		return y
 
-def debug_normal_block():
+def build_stage(
+		input_channels,
+		output_channels,
+		stride,
+		dilation,
+		number_of_normal_blocks,
+		temporal_padding
+	):
+	"""Builds stages of residual blocks.
+
+	Args:
+		input_channels (int): Number of input channels at start of stage
+		output_channels (int): Number of output channels at Transition block. Also, the number of input channels for the stage's normal blocks
+		stride (int | tuple): The stride for the stage's transition block.
+		dilation (int | tuple): The dilation for the stage's convolution layers
+		number_of_normal_blocks (int): The number of normal blocks to include in the stage
+		temporal_padding (tuple): The padding for the temporal depthwise convolutions
+
+	Returns:
+		nn.Sequential: An nn.Sequential module with the appropriate components for the stage described by the parameters.
+	"""
+	modules = []
+	modules.append(
+		BCResTransitionBlock(
+			input_channels=input_channels,
+			output_channels=output_channels,
+			stride=stride,
+			dilation=dilation,
+			temporal_padding=temporal_padding
+		),
+	)
+
+	for _ in range(number_of_normal_blocks):
+		modules.append(
+			BCResNormalBlock(
+				input_channels=output_channels,
+				output_channels=output_channels,
+				stride=1,
+				dilation=dilation,
+				temporal_padding=temporal_padding
+			),
+		)
+	
+	return nn.Sequential(*modules)
+
+def test_normal_block():
 	import torch
 
 	batch = 2
@@ -205,23 +252,23 @@ def debug_normal_block():
 	h = 40
 	w = 100
 	x = torch.rand((batch, channels, h, w))
-	hparams = {
-		'input_channels': channels,
-		'output_channels': channels,
-		'stride': 1,
-		'dilation': 1,
-		'frequency_kernel_size': (3, 1),
-		'frequency_padding': (1, 0),
-		'temporal_kernel_size': (1, 3),
-		'temporal_padding': (0, 1),
-	}
 
-	normal_res_block = BCResNormalBlock(hparams)
+	normal_res_block = BCResNormalBlock(
+		input_channels = channels,
+		output_channels = channels,
+		stride = 1,
+		dilation = 1,
+		frequency_kernel_size = (3, 1),
+		frequency_padding = (1, 0),
+		temporal_kernel_size = (1, 3),
+		temporal_padding = (0, 1),
+	)
+
+	print('Input Shape: {}'.format(x.shape))
 	y = normal_res_block(x)
+	print('Output Shape: {}'.format(y.shape))
 	
-	print('debugging normal block')
-
-def debug_transition_block():
+def test_transition_block():
 	import torch
 
 	batch = 2
@@ -230,23 +277,48 @@ def debug_transition_block():
 	h = 40
 	w = 100
 	x = torch.rand((batch, input_channels, h, w))
-	hparams = {
-		'input_channels': input_channels,
-		'output_channels': output_channels,
-		'stride': 1,
-		'dilation': 1,
-		'frequency_kernel_size': (3, 1),
-		'frequency_padding': (1, 0),
-		'temporal_kernel_size': (1, 3),
-		'temporal_padding': (0, 1),
-	}
 
-	transition_res_block = BCResTransitionBlock(hparams)
-	y = transition_res_block(x)
+	transition_res_block = BCResTransitionBlock(
+		input_channels = input_channels,
+		output_channels = output_channels,
+		stride = 1,
+		dilation = 1,
+		frequency_kernel_size = (3, 1),
+		frequency_padding = (1, 0),
+		temporal_kernel_size = (1, 3),
+		temporal_padding = (0, 1),
+	)
 	
-	print('debugging transition block')
+	print('Input Shape: {}'.format(x.shape))
+	y = transition_res_block(x)
+	print('Output Shape: {}'.format(y.shape))
+
+def test_stage():
+	import torch
+
+	batch = 2
+	input_channels = 16
+	output_channels = 8
+	h = 20
+	w = 100
+	x = torch.rand((batch, input_channels, h, w))
+
+	stage = build_stage(
+		input_channels=input_channels,
+		output_channels=output_channels,
+		stride=1,
+		dilation=1,
+		number_of_normal_blocks=2,
+		temporal_padding=(0, 1)
+	)
+
+	print('Input Shape: {}'.format(x.shape))
+	out = stage(x)
+	print('Output Shape: {}'.format(out.shape))
+	print('Length of Stage: {}'.format(len(stage)))
 
 
 if __name__ == "__main__":
-	# debug_normal_block()
-	debug_transition_block()
+	# test_normal_block()
+	# test_transition_block()
+	test_stage()
